@@ -41,7 +41,7 @@ void runAnalysis(TString runPeriod = "LHC16k",
 
   if(type != "data"){
     isMC = true;
-    if(type == "LHC20f10a" || type == "LHC20f10b" || type == "LHC20f10c"){
+    if(type == "LHC20f10a" || type == "LHC20f10b" || type == "LHC20f10c" || type == "Pythia6Perugia2011CCSemiMuonic"){
       isEventSelection = false;
     }
   }
@@ -183,6 +183,13 @@ AliAnalysisGrid* CreateAlienHandler(TString runPeriod, TString run_mode, Bool_t 
     plugin->SetDataPattern("/AOD/ AliAOD.Muons.root");
   }
   
+  if(type == "Pythia6Perugia2011CCSemiMuonic"){
+    plugin->SetGridDataDir("/alice/cern.ch/user/s/syano/simulation/2016/Pythia6Perugia2011CCSemiMuonic");    
+    plugin->SetDataPattern("AliAOD.Muons.root");
+      plugin->SetSplitMaxInputFileNumber(10);    
+      plugin->SetNrunsPerMaster(5);
+  }
+
   else if(type == "data"){
     if (runPeriod.Contains("LHC16h")){
       plugin->SetGridDataDir("/alice/data/2016/LHC16h");    

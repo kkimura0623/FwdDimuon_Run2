@@ -64,6 +64,7 @@ class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
   bool MuonPairAnalysis();
   bool MuonPairAnalysisEveMixing();  
   bool MuonTrackQA(AliAODTrack* track);
+  bool HFMuonTrackQA(AliAODTrack* track);
   bool ProcessMC();
 
   AliAODEvent    *fEvent;  
@@ -120,14 +121,31 @@ class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
   THnSparse* fSparseOmega2BodyMC;
   THnSparse* fSparsePhi2BodyMC;
   THnSparse* fSparseEtaPrimeDalitzMC;
-
-
+  
   TH2F* fHistTrackEta;
   TH2F* fHistTrackThetaAbs;
   TH2F* fHistTrackTriggerMatch;
   TH2F* fHistTrackPDCA;
   TH2F* fHistTrackChiSquare;
   TH2F* fHistTriggerChiSquare;
+
+  TTree* fTreeHF;
+  double RecQPt;
+  double RecPhi;
+  double RecEta;
+  double TrueQPt;
+  double TruePhi;
+  double TrueEta;
+  bool TrueBeauty;
+  bool TrueCharm;
+
+  TTree* fTreeHFMC;
+  double MCQPt;
+  double MCPhi;
+  double MCEta;
+  bool MCBeauty;
+  bool MCCharm;
+
 
   ClassDef(AliAnalysisTaskAODTrackPair, 1); // example of analysis
 };

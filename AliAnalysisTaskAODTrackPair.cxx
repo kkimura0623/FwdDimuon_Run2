@@ -106,8 +106,24 @@ AliAnalysisTaskAODTrackPair::AliAnalysisTaskAODTrackPair() :
   fHistTrackTriggerMatch(NULL),
   fHistTrackPDCA(NULL),
   fHistTrackChiSquare(NULL),
-  fHistTriggerChiSquare(NULL)
+  fHistTriggerChiSquare(NULL),
 
+  fTreeHF(NULL),
+  RecQPt(NULL),
+  RecPhi(NULL),
+  RecEta(NULL),
+  TrueQPt(NULL),
+  TruePhi(NULL),
+  TrueEta(NULL),
+  TrueBeauty(false),
+  TrueCharm(false),
+
+  fTreeHFMC(NULL),
+  MCQPt(NULL),
+  MCPhi(NULL),
+  MCEta(NULL),
+  MCBeauty(false),
+  MCCharm(false)
 { 
   
 }
@@ -163,7 +179,25 @@ AliAnalysisTaskAODTrackPair::AliAnalysisTaskAODTrackPair(const char* name) :
   fHistTrackTriggerMatch(NULL),
   fHistTrackPDCA(NULL),
   fHistTrackChiSquare(NULL),
-  fHistTriggerChiSquare(NULL)
+  fHistTriggerChiSquare(NULL),
+
+  fTreeHF(NULL),
+  RecQPt(NULL),
+  RecPhi(NULL),
+  RecEta(NULL),
+  TrueQPt(NULL),
+  TruePhi(NULL),
+  TrueEta(NULL),
+  TrueBeauty(false),
+  TrueCharm(false),
+  
+  fTreeHFMC(NULL),
+  MCQPt(NULL),
+  MCPhi(NULL),
+  MCEta(NULL),
+  MCBeauty(false),
+  MCCharm(false)
+
 { 
   
   
@@ -293,6 +327,26 @@ void AliAnalysisTaskAODTrackPair::UserCreateOutputObjects()
     TString  namebins_True_Rho[]        = {"true_rap","true_pt","true_mass"};
     fSparseRho2BodyMC= new THnSparseF("fSparseRho2BodyMC","",binnum_True_Rho,bins_True_Rho,minbins_True_Rho,maxbins_True_Rho);
     fOutputList->Add(fSparseRho2BodyMC);
+  
+    fTreeHF = new TTree("fTreeHF","Tree for HF analysis");
+    fTreeHF->Branch("RecQPt",&RecQPt,"RecQPt/D");
+    fTreeHF->Branch("RecPhi",&RecPhi,"RecPhi/D");
+    fTreeHF->Branch("RecEta",&RecEta,"RecEta/D");
+    fTreeHF->Branch("TrueQPt",&TrueQPt,"TrueQPt/D");
+    fTreeHF->Branch("TruePhi",&TruePhi,"TruePhi/D");
+    fTreeHF->Branch("TrueEta",&TrueEta,"TrueEta/D");
+    fTreeHF->Branch("TrueCharm",&TrueCharm,"TrueCharm/O");
+    fTreeHF->Branch("TrueBeauty",&TrueBeauty,"TrueBeauty/O");
+    fOutputList->Add(fTreeHF);
+
+    fTreeHFMC = new TTree("fTreeHFMC","Tree for HF analysis");
+    fTreeHFMC->Branch("MCQPt",&MCQPt,"MCQPt/D");
+    fTreeHFMC->Branch("MCPhi",&MCPhi,"MCPhi/D");
+    fTreeHFMC->Branch("MCEta",&MCEta,"MCEta/D");
+    fTreeHFMC->Branch("MCCharm",&MCCharm,"MCCharm/O");
+    fTreeHFMC->Branch("MCBeauty",&MCBeauty,"MCBeauty/O");
+    fOutputList->Add(fTreeHFMC);
+    
   }
 
   fHistTrackEta = new TH2F("fHistTrackEta","",20,0,10,25,-4.5,-2.0);
@@ -315,7 +369,6 @@ void AliAnalysisTaskAODTrackPair::UserCreateOutputObjects()
 
 void AliAnalysisTaskAODTrackPair::UserExec(Option_t *)
 { 
-
   if(!Initialize()) return;
   if(!fUtils->isAcceptEvent()) return;
 
@@ -328,17 +381,42 @@ bool AliAnalysisTaskAODTrackPair::ProcessMC(){
   
   AliAODMCParticle *particle1;
 
-  for(Int_t iTrack1=0; iTrack1<fMCTrackArray->GetSize(); ++iTrack1){
+  for(Int_t iTrack1=0; iTrack1<fMCTrackArray->GetEntries(); ++iTrack1){
     
-    particle1 = (AliAODMCParticle*)fMCTrackArray->At(iTrack1);
-
+    particle1 = (AliAODMCParticle*)fMCTrackArray->At(iTrack1);   
     if(!particle1) continue;
+
     if(!TDatabasePDG::Instance()->GetParticle(particle1->GetPdgCode())) continue;
-    
+    if(!fUtils->isPrimary(particle1)) continue;
     int pdgcode = particle1->GetPdgCode();
     
+    if(fabs(pdgcode)==13){
+      MCCharm=false;
+      MCBeauty=false;
+      
+      if(fUtils->isCharmQuarkOrigin(particle1) && !fUtils->isBeautyQuarkOrigin(particle1)){
+	MCCharm = true;
+	MCBeauty = false;
+      }
+      else if(!fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
+	MCCharm = false;
+	MCBeauty = true;
+      }
+      else if(fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
+	MCCharm = true;
+	MCBeauty = true;
+      }
+      else {
+	continue;
+      }
+      MCQPt = particle1->Charge()*particle1->Pt() / 3.;
+      MCPhi = particle1->Phi();
+      MCEta = particle1->Eta();
+      fTreeHFMC->Fill();
+    }
+
     double fill[]={fabs(particle1->Y()),particle1->Pt()};
-    
+      
     if(pdgcode == fUtils->fPdgCodeEta){
       if(fUtils->isDalitzProd()){
 	fSparseEtaDalitzMC->Fill(fill);
@@ -393,6 +471,11 @@ bool AliAnalysisTaskAODTrackPair::Initialize()
   }
 
   if(fIsMC){
+
+    fMCTrackArray = dynamic_cast<TClonesArray*>(fEvent->FindListObject(AliAODMCParticle::StdBranchName()));
+    if(!fMCTrackArray) return false;
+    fUtils->setMCArray(fMCTrackArray);
+    
     AliAODMCHeader* mcHeader = (AliAODMCHeader*) fEvent->GetList()->FindObject(AliAODMCHeader::StdBranchName());  
     if(!mcHeader) return false;  
     
@@ -431,13 +514,9 @@ bool AliAnalysisTaskAODTrackPair::Initialize()
     
     Double_t impPar = mcHeader->GetImpactParameter();    
     
-    fMCTrackArray = dynamic_cast<TClonesArray*>(fEvent->FindListObject(AliAODMCParticle::StdBranchName()));
-    if(!fMCTrackArray) return false;
-    fUtils->setMCArray(fMCTrackArray);
   }
 
   fUtils->getTriggerInfo(fIsCINT7, fIsCMSL7, fIsCMSH7, fIsCMUL7, fIsCMLL7);
-  
   
   return true;
 }
@@ -447,10 +526,53 @@ bool AliAnalysisTaskAODTrackPair::MuonTrackQA(AliAODTrack* track){
   fHistTrackEta->Fill(track->Pt(),track->Eta());
   fHistTrackThetaAbs->Fill(track->Pt(),AliAnalysisMuonUtility::GetThetaAbsDeg(track));
   fHistTrackTriggerMatch->Fill(track->Pt(),AliAnalysisMuonUtility::GetMatchTrigger(track));
-  //fHistTrackPDCA->Fill();
   fHistTrackChiSquare->Fill(track->Pt(),AliAnalysisMuonUtility::GetChi2perNDFtracker(track));
   fHistTriggerChiSquare->Fill(track->Pt(),AliAnalysisMuonUtility::GetChi2MatchTrigger(track));
   
+  if(fIsMC) HFMuonTrackQA(track);
+  
+  return true;
+}
+
+bool AliAnalysisTaskAODTrackPair::HFMuonTrackQA(AliAODTrack* track){
+  
+  if(track->GetLabel()<0) return false;
+  
+  AliAODMCParticle *particle1 = (AliAODMCParticle*)fMCTrackArray->At(track->GetLabel());  
+  if(!particle1) return false;
+  if(!TDatabasePDG::Instance()->GetParticle(particle1->GetPdgCode())) return false;  
+
+  if(!fUtils->isPrimary(particle1)) return false;
+
+  TrueCharm=false;
+  TrueBeauty=false;
+  
+  if(fUtils->isCharmQuarkOrigin(particle1) && !fUtils->isBeautyQuarkOrigin(particle1)){
+    TrueCharm = true;
+    TrueBeauty = false;
+  }
+  else if(!fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
+    TrueCharm = false;
+    TrueBeauty = true;
+  }
+  else if(fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
+    TrueCharm = true;
+    TrueBeauty = true;
+  }
+  else {
+    return false;
+  }
+
+  TrueQPt = particle1->Charge()*particle1->Pt() / 3.;
+  TruePhi = particle1->Phi();
+  TrueEta = particle1->Eta();
+  
+  RecQPt = track->Charge()*track->Pt();
+  RecPhi = track->Phi();
+  RecEta = track->Eta();
+ 
+  fTreeHF->Fill();
+
   return true;
 }
 
@@ -554,6 +676,7 @@ bool AliAnalysisTaskAODTrackPair::MuonPairAnalysis()
   Int_t nTrack = fEvent->GetNumberOfTracks();
   
   AliAODMCParticle* particle1;
+  AliAODMCParticle* particle2;
   AliAODTrack* track1;
   AliAODTrack* track2;
   AliAODDimuon* dimuon;
@@ -592,6 +715,8 @@ bool AliAnalysisTaskAODTrackPair::MuonPairAnalysis()
       }
       
       if(!fIsMC) continue;
+
+      if(track1->GetLabel()<0 || track2->GetLabel()<0) continue;
 
       if(fUtils->isSameMotherPair(track1,track2)){
 	int mom_pdg=fUtils->getMotherPdgCode(track1);
@@ -634,6 +759,18 @@ bool AliAnalysisTaskAODTrackPair::MuonPairAnalysis()
 	  }
 	}
 
+      }
+      else{
+	
+	particle1 = (AliAODMCParticle*)fMCTrackArray->At(track1->GetLabel());
+	particle2 = (AliAODMCParticle*)fMCTrackArray->At(track2->GetLabel());
+
+	if(fUtils->isCharmQuarkOrigin(particle1) && !fUtils->isBeautyQuarkOrigin(particle1) &&
+	   fUtils->isCharmQuarkOrigin(particle2) && !fUtils->isBeautyQuarkOrigin(particle2)){
+	  
+	  
+
+	}
       }
 
 

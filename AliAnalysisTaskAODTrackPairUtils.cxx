@@ -57,6 +57,8 @@ AliAnalysisTaskAODTrackPairUtils::AliAnalysisTaskAODTrackPairUtils() : TNamed(),
   fCentV0C(0.),
   fCentV0M(0.),
 
+  fTrueVtx(),
+
   fDSfactor(1.),
 
   fIsCINT7(false),
@@ -112,6 +114,10 @@ void AliAnalysisTaskAODTrackPairUtils::setInit()
   fCent=-999;
   fPsi=-999;
   
+  fTrueVtx[0] = -999;
+  fTrueVtx[1] = -999;
+  fTrueVtx[2] = -999;
+
   fCentSPDTrk=-999;
   fCentV0A=-999;
   fCentV0C=-999;
@@ -164,6 +170,10 @@ bool AliAnalysisTaskAODTrackPairUtils::setEvent(AliAODEvent* event, AliVEventHan
 
   fRunNumber = fEvent->GetRunNumber();
   
+  if(fIsMC){
+    setMCEventInfo();
+  }
+
   if(!fIsEvtSelect) return true;
 
   fMultSelection = (AliMultSelection *)fEvent->FindListObject("MultSelection");  
@@ -196,8 +206,7 @@ bool AliAnalysisTaskAODTrackPairUtils::isSameRunnumber()
 }
 
 bool AliAnalysisTaskAODTrackPairUtils::isAcceptEvent()
-{  
-  
+{    
   if(!fEvent) return false;  
 
   if(!fIsEvtSelect) return true;
@@ -267,6 +276,90 @@ bool AliAnalysisTaskAODTrackPairUtils::isSameMotherPair(AliAODTrack* track1,AliA
   return true;
 }
 
+
+
+
+bool AliAnalysisTaskAODTrackPairUtils::isCharmQuarkOrigin(AliAODMCParticle* particle)
+{  
+  Int_t mother1 = particle->GetMother();
+  
+  if(mother1<0) return false;
+
+  AliAODMCParticle *particle_mother1 = (AliAODMCParticle*)fMCArray->At(mother1);
+  if(!particle_mother1) return NULL;
+
+  Int_t mom_pid1 = particle_mother1->GetPdgCode();
+  
+  AliAODMCParticle* particle_origin = NULL;
+
+  while(true) {
+    
+    particle_mother1 = (AliAODMCParticle*)fMCArray->At(mother1);
+    
+    if(!particle_mother1) break;
+    else{
+      mother1  = particle_mother1->GetMother();
+      mom_pid1 = particle_mother1->GetPdgCode();      
+      if(fabs(mom_pid1) == 4){
+	return true;
+      }
+    }
+  }//end of while	    
+
+  return false;
+}
+
+bool AliAnalysisTaskAODTrackPairUtils::isBeautyQuarkOrigin(AliAODMCParticle* particle)
+{  
+  Int_t mother1 = particle->GetMother();
+  
+  if(mother1<0) return false;
+
+  AliAODMCParticle *particle_mother1 = (AliAODMCParticle*)fMCArray->At(mother1);
+  if(!particle_mother1) return NULL;
+
+  Int_t mom_pid1 = particle_mother1->GetPdgCode();
+  
+  AliAODMCParticle* particle_origin = NULL;
+
+  while(true) {
+    
+    particle_mother1 = (AliAODMCParticle*)fMCArray->At(mother1);
+    
+    if(!particle_mother1) break;
+    else{
+      mother1  = particle_mother1->GetMother();
+      mom_pid1 = particle_mother1->GetPdgCode();      
+      if(fabs(mom_pid1) == 5){
+	return true;
+      }
+    }
+  }//end of while	    
+  
+  return false;
+}
+
+bool AliAnalysisTaskAODTrackPairUtils::isPrimary(AliAODMCParticle* particle){
+  
+  if(!particle) return false;
+  //if(particle->IsSecondaryFromMaterial()) return false;
+  
+  double vtx[3]={-999,-999,-999};  
+  particle->XvYvZv(vtx);
+
+  double length = sqrt(pow(vtx[0]-fTrueVtx[0],2) + pow(vtx[1]-fTrueVtx[1],2) + pow(vtx[2]-fTrueVtx[2],2));
+
+  if(length>3) return false;
+
+  return true;
+}
+
+bool AliAnalysisTaskAODTrackPairUtils::isHeavyFlavorOrigin(AliAODMCParticle* particle)
+{
+  if(isCharmQuarkOrigin(particle) || isBeautyQuarkOrigin(particle)) return true;
+  else return false;
+}
+
 int AliAnalysisTaskAODTrackPairUtils::getMotherPdgCode(AliAODTrack *track)
 {
   if(!fMCArray) return false;
@@ -309,6 +402,18 @@ int AliAnalysisTaskAODTrackPairUtils::getMotherLabel(AliAODTrack *track)
   
   return mom;
   
+}
+
+bool AliAnalysisTaskAODTrackPairUtils::setMCEventInfo(){
+
+  if(!fMCArray) return false;
+
+  AliAODMCParticle *part = (AliAODMCParticle*)fMCArray->At(0);
+  if(!part) return false;
+
+  part->XvYvZv(fTrueVtx);
+  
+  return true;
 }
 
 bool AliAnalysisTaskAODTrackPairUtils::setVtxZCentPsi()
