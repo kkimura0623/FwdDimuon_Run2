@@ -3,6 +3,7 @@
 
 #include "AliAnalysisTaskSE.h"
 #include "THnSparse.h"
+#include "TH3F.h"
 #include "AliAnalysisTaskAODTrackPairUtils.h"
 
 class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
@@ -54,6 +55,24 @@ class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
   {
     fTriggerMaskForSame = mask;
   }
+  
+  void setEff(TH3F* p, TH3F* m){
+    fEffP = p;
+    fEffM = m;
+  }
+  void setReso(THnSparse* p, THnSparse* m){
+    fResoP= p;
+    fResoM = m;
+  }
+
+  bool isMimicDetect(AliAODMCParticle* part);
+  bool getMimicResolution(AliAODMCParticle* part, vector<double>& reso);
+
+  TH3F* fEffP;
+  TH3F* fEffM;
+
+  THnSparse *fResoP;
+  THnSparse *fResoM;
 
  private:
   
@@ -66,6 +85,7 @@ class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
   bool MuonTrackQA(AliAODTrack* track);
   bool HFMuonTrackQA(AliAODTrack* track);
   bool ProcessMC();
+  bool isPrimaryMuonTrack(AliAODMCParticle *particle1);
 
   AliAODEvent    *fEvent;  
   AliEventPoolManager *fPoolMuonTrackMgr;
@@ -129,23 +149,49 @@ class AliAnalysisTaskAODTrackPair : public AliAnalysisTaskSE {
   TH2F* fHistTrackChiSquare;
   TH2F* fHistTriggerChiSquare;
 
-  TTree* fTreeHF;
-  double RecQPt;
-  double RecPhi;
-  double RecEta;
-  double TrueQPt;
-  double TruePhi;
-  double TrueEta;
-  bool TrueBeauty;
-  bool TrueCharm;
+  TTree* fTreeDimuon;
+  int RecDimuonQ;
+  double RecDimuonPt;
+  double RecDimuonEta;
+  double RecDimuonMass;
+  int MCDimuonQ;
+  double MCDimuonPt;
+  double MCDimuonEta;
+  double MCDimuonMass;
+  bool isDimuonDetect;
 
-  TTree* fTreeHFMC;
-  double MCQPt;
-  double MCPhi;
-  double MCEta;
-  bool MCBeauty;
-  bool MCCharm;
+  TTree* fTreeMimicDimuon;
+  int RecMimicDimuonQ;
+  double RecMimicDimuonPt;
+  double RecMimicDimuonEta;
+  double RecMimicDimuonMass;
+  int MCMimicDimuonQ;
+  double MCMimicDimuonPt;
+  double MCMimicDimuonEta;
+  double MCMimicDimuonMass;
+  bool isMimicDimuonDetect;
 
+  TTree* fTreeMuon;
+  int RecMuonQ;
+  double RecMuonPt;
+  double RecMuonEta;
+  double RecMuonPhi;
+  int MCMuonQ;
+  double MCMuonPt;
+  double MCMuonEta;
+  double MCMuonPhi;
+  bool isMuonDetect;
+
+  TTree* fTreeMimicMuon;
+  int RecMimicMuonQ;
+  double RecMimicMuonPt;
+  double RecMimicMuonEta;
+  double RecMimicMuonPhi;
+  int MCMimicMuonQ;
+  double MCMimicMuonPt;
+  double MCMimicMuonEta;
+  double MCMimicMuonPhi;
+  bool isMimicMuonDetect;
 
   ClassDef(AliAnalysisTaskAODTrackPair, 1); // example of analysis
 };

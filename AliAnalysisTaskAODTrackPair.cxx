@@ -3,6 +3,7 @@
 #include "TTree.h"
 #include "TFile.h"
 #include "TH1F.h"
+#include "TH3F.h"
 #include "TCanvas.h"
 #include "TDatabasePDG.h"
 #include "TRefArray.h"
@@ -108,22 +109,55 @@ AliAnalysisTaskAODTrackPair::AliAnalysisTaskAODTrackPair() :
   fHistTrackChiSquare(NULL),
   fHistTriggerChiSquare(NULL),
 
-  fTreeHF(NULL),
-  RecQPt(NULL),
-  RecPhi(NULL),
-  RecEta(NULL),
-  TrueQPt(NULL),
-  TruePhi(NULL),
-  TrueEta(NULL),
-  TrueBeauty(false),
-  TrueCharm(false),
+  fTreeDimuon(NULL),
+  RecDimuonQ(0.),
+  RecDimuonPt(0.),
+  RecDimuonEta(0.),
+  RecDimuonMass(0.),
+  MCDimuonQ(0.),
+  MCDimuonPt(0.),  
+  MCDimuonEta(0.),
+  MCDimuonMass(0.),
+  isDimuonDetect(false),
 
-  fTreeHFMC(NULL),
-  MCQPt(NULL),
-  MCPhi(NULL),
-  MCEta(NULL),
-  MCBeauty(false),
-  MCCharm(false)
+  fTreeMimicDimuon(NULL),
+  RecMimicDimuonQ(0.),
+  RecMimicDimuonPt(0.),
+  RecMimicDimuonEta(0.),
+  RecMimicDimuonMass(0.),
+  MCMimicDimuonQ(0.),
+  MCMimicDimuonPt(0.),  
+  MCMimicDimuonEta(0.),
+  MCMimicDimuonMass(0.),
+  isMimicDimuonDetect(false),
+
+  fTreeMuon(NULL),
+  RecMuonQ(0.),
+  RecMuonPt(0.),
+  RecMuonEta(0.),
+  RecMuonPhi(0.),
+  MCMuonQ(0.),
+  MCMuonPt(0.),  
+  MCMuonEta(0.),
+  MCMuonPhi(0.),
+  isMuonDetect(false),
+
+  fTreeMimicMuon(NULL),
+  RecMimicMuonQ(0.),
+  RecMimicMuonPt(0.),
+  RecMimicMuonEta(0.),
+  RecMimicMuonPhi(0.),
+  MCMimicMuonQ(0.),
+  MCMimicMuonPt(0.),  
+  MCMimicMuonEta(0.),
+  MCMimicMuonPhi(0.),
+  isMimicMuonDetect(false),
+  
+  fEffP(NULL),
+  fEffM(NULL),
+  fResoP(NULL),
+  fResoM(NULL)
+
 { 
   
 }
@@ -181,22 +215,54 @@ AliAnalysisTaskAODTrackPair::AliAnalysisTaskAODTrackPair(const char* name) :
   fHistTrackChiSquare(NULL),
   fHistTriggerChiSquare(NULL),
 
-  fTreeHF(NULL),
-  RecQPt(NULL),
-  RecPhi(NULL),
-  RecEta(NULL),
-  TrueQPt(NULL),
-  TruePhi(NULL),
-  TrueEta(NULL),
-  TrueBeauty(false),
-  TrueCharm(false),
+  fTreeDimuon(NULL),
+  RecDimuonQ(0.),
+  RecDimuonPt(0.),
+  RecDimuonEta(0.),
+  RecDimuonMass(0.),
+  MCDimuonQ(0.),
+  MCDimuonPt(0.),  
+  MCDimuonEta(0.),
+  MCDimuonMass(0.),
+  isDimuonDetect(false),
+
+  fTreeMimicDimuon(NULL),
+  RecMimicDimuonQ(0.),
+  RecMimicDimuonPt(0.),
+  RecMimicDimuonEta(0.),
+  RecMimicDimuonMass(0.),
+  MCMimicDimuonQ(0.),
+  MCMimicDimuonPt(0.),  
+  MCMimicDimuonEta(0.),
+  MCMimicDimuonMass(0.),
+  isMimicDimuonDetect(false),
+
+  fTreeMuon(NULL),
+  RecMuonQ(0.),
+  RecMuonPt(0.),
+  RecMuonEta(0.),
+  RecMuonPhi(0.),
+  MCMuonQ(0.),
+  MCMuonPt(0.),  
+  MCMuonEta(0.),
+  MCMuonPhi(0.),
+  isMuonDetect(false),
   
-  fTreeHFMC(NULL),
-  MCQPt(NULL),
-  MCPhi(NULL),
-  MCEta(NULL),
-  MCBeauty(false),
-  MCCharm(false)
+  fTreeMimicMuon(NULL),
+  RecMimicMuonQ(0.),
+  RecMimicMuonPt(0.),
+  RecMimicMuonEta(0.),
+  RecMimicMuonPhi(0.),
+  MCMimicMuonQ(0.),
+  MCMimicMuonPt(0.),  
+  MCMimicMuonEta(0.),
+  MCMimicMuonPhi(0.),
+  isMimicMuonDetect(false),
+
+  fEffP(NULL),
+  fEffM(NULL),
+  fResoP(NULL),
+  fResoM(NULL)
 
 { 
   
@@ -247,11 +313,15 @@ void AliAnalysisTaskAODTrackPair::UserCreateOutputObjects()
   for(int iname=0; iname<sizeof(event_label)/sizeof(std::string); ++iname)
     fEventCounter->GetXaxis()->SetBinLabel(iname+1,event_label[iname].c_str());
   fOutputList->Add(fEventCounter);
+  
+  double min_mass = 0.;
+  double max_mass = 12.;
+  double mass_width = 0.025;
 
   const Int_t binnum_Cent            = 4;
-  Int_t bins_Cent[binnum_Cent]       = {800,6,300,binnum_cent_hist};
-  double minbins_Cent[binnum_Cent] = {0,2.5,0,0};
-  double maxbins_Cent[binnum_Cent] = {4,4.0,30,100};
+  Int_t bins_Cent[binnum_Cent]       = {(max_mass-min_mass)/mass_width,6,300,binnum_cent_hist};
+  double minbins_Cent[binnum_Cent] = {min_mass,2.5,0,0};
+  double maxbins_Cent[binnum_Cent] = {max_mass,4.0,30,100};
   TString  namebins_Cent[]        = {"mass","rap","pt","centrality"};
   
   fSparseULSDimuon = new THnSparseF("fSparseULSDimuon","",binnum_Cent,bins_Cent,minbins_Cent,maxbins_Cent);
@@ -327,26 +397,55 @@ void AliAnalysisTaskAODTrackPair::UserCreateOutputObjects()
     TString  namebins_True_Rho[]        = {"true_rap","true_pt","true_mass"};
     fSparseRho2BodyMC= new THnSparseF("fSparseRho2BodyMC","",binnum_True_Rho,bins_True_Rho,minbins_True_Rho,maxbins_True_Rho);
     fOutputList->Add(fSparseRho2BodyMC);
-  
-    fTreeHF = new TTree("fTreeHF","Tree for HF analysis");
-    fTreeHF->Branch("RecQPt",&RecQPt,"RecQPt/D");
-    fTreeHF->Branch("RecPhi",&RecPhi,"RecPhi/D");
-    fTreeHF->Branch("RecEta",&RecEta,"RecEta/D");
-    fTreeHF->Branch("TrueQPt",&TrueQPt,"TrueQPt/D");
-    fTreeHF->Branch("TruePhi",&TruePhi,"TruePhi/D");
-    fTreeHF->Branch("TrueEta",&TrueEta,"TrueEta/D");
-    fTreeHF->Branch("TrueCharm",&TrueCharm,"TrueCharm/O");
-    fTreeHF->Branch("TrueBeauty",&TrueBeauty,"TrueBeauty/O");
-    fOutputList->Add(fTreeHF);
 
-    fTreeHFMC = new TTree("fTreeHFMC","Tree for HF analysis");
-    fTreeHFMC->Branch("MCQPt",&MCQPt,"MCQPt/D");
-    fTreeHFMC->Branch("MCPhi",&MCPhi,"MCPhi/D");
-    fTreeHFMC->Branch("MCEta",&MCEta,"MCEta/D");
-    fTreeHFMC->Branch("MCCharm",&MCCharm,"MCCharm/O");
-    fTreeHFMC->Branch("MCBeauty",&MCBeauty,"MCBeauty/O");
-    fOutputList->Add(fTreeHFMC);
-    
+    fTreeDimuon = new TTree("fTreeDimuon","Tree for HF analysis");
+    fTreeDimuon->Branch("RecDimuonQ",&RecDimuonQ,"RecDimuonQ/I");
+    fTreeDimuon->Branch("RecDimuonPt",&RecDimuonPt,"RecDimuonPt/D");
+    fTreeDimuon->Branch("RecDimuonEta",&RecDimuonEta,"RecDimuonEta/D");
+    fTreeDimuon->Branch("RecDimuonMass",&RecDimuonMass,"RecDimuonMass/D");    
+    fTreeDimuon->Branch("MCDimuonQ",&MCDimuonQ,"MCDimuonQ/I");
+    fTreeDimuon->Branch("MCDimuonPt",&MCDimuonPt,"MCDimuonPt/D");
+    fTreeDimuon->Branch("MCDimuonEta",&MCDimuonEta,"MCDimuonEta/D");
+    fTreeDimuon->Branch("MCDimuonMass",&MCDimuonMass,"MCDimuonMass/D");
+    fTreeDimuon->Branch("isDimuonDetect",&isDimuonDetect,"isDImuonDetect/O");
+    fOutputList->Add(fTreeDimuon);
+
+    fTreeMimicDimuon = new TTree("fTreeMimicDimuon","Tree for HF analysis");
+    fTreeMimicDimuon->Branch("RecMimicDimuonQ",&RecMimicDimuonQ,"RecMimicDimuonQ/I");
+    fTreeMimicDimuon->Branch("RecMimicDimuonPt",&RecMimicDimuonPt,"RecMimicDimuonPt/D");
+    fTreeMimicDimuon->Branch("RecMimicDimuonEta",&RecMimicDimuonEta,"RecMimicDimuonEta/D");
+    fTreeMimicDimuon->Branch("RecMimicDimuonMass",&RecMimicDimuonMass,"RecMimicDimuonMass/D");    
+    fTreeMimicDimuon->Branch("MCMimicDimuonQ",&MCMimicDimuonQ,"MCMimicDimuonQ/I");
+    fTreeMimicDimuon->Branch("MCMimicDimuonPt",&MCMimicDimuonPt,"MCMimicDimuonPt/D");
+    fTreeMimicDimuon->Branch("MCMimicDimuonEta",&MCMimicDimuonEta,"MCMimicDimuonEta/D");
+    fTreeMimicDimuon->Branch("MCMimicDimuonMass",&MCMimicDimuonMass,"MCMimicDimuonMass/D");
+    fTreeMimicDimuon->Branch("isMimicDimuonDetect",&isMimicDimuonDetect,"isDImuonDetect/O");
+    fOutputList->Add(fTreeMimicDimuon);
+
+    fTreeMuon = new TTree("fTreeMuon","Tree for HF analysis");
+    fTreeMuon->Branch("RecMuonQ",&RecMuonQ,"RecMuonQ/I");
+    fTreeMuon->Branch("RecMuonPt",&RecMuonPt,"RecMuonPt/D");
+    fTreeMuon->Branch("RecMuonEta",&RecMuonEta,"RecMuonEta/D");
+    fTreeMuon->Branch("RecMuonPhi",&RecMuonPhi,"RecMuonPhi/D");    
+    fTreeMuon->Branch("MCMuonQ",&MCMuonQ,"MCMuonQ/I");
+    fTreeMuon->Branch("MCMuonPt",&MCMuonPt,"MCMuonPt/D");
+    fTreeMuon->Branch("MCMuonEta",&MCMuonEta,"MCMuonEta/D");
+    fTreeMuon->Branch("MCMuonPhi",&MCMuonPhi,"MCMuonPhi/D");
+    fTreeMuon->Branch("isMuonDetect",&isMuonDetect,"isDImuonDetect/O");
+    fOutputList->Add(fTreeMuon);
+
+    fTreeMimicMuon = new TTree("fTreeMimicMuon","Tree for HF analysis");
+    fTreeMimicMuon->Branch("RecMimicMuonQ",&RecMimicMuonQ,"RecMimicMuonQ/I");
+    fTreeMimicMuon->Branch("RecMimicMuonPt",&RecMimicMuonPt,"RecMimicMuonPt/D");
+    fTreeMimicMuon->Branch("RecMimicMuonEta",&RecMimicMuonEta,"RecMimicMuonEta/D");
+    fTreeMimicMuon->Branch("RecMimicMuonPhi",&RecMimicMuonPhi,"RecMimicMuonPhi/D");    
+    fTreeMimicMuon->Branch("MCMimicMuonQ",&MCMimicMuonQ,"MCMimicMuonQ/I");
+    fTreeMimicMuon->Branch("MCMimicMuonPt",&MCMimicMuonPt,"MCMimicMuonPt/D");
+    fTreeMimicMuon->Branch("MCMimicMuonEta",&MCMimicMuonEta,"MCMimicMuonEta/D");
+    fTreeMimicMuon->Branch("MCMimicMuonPhi",&MCMimicMuonPhi,"MCMimicMuonPhi/D");
+    fTreeMimicMuon->Branch("isMimicMuonDetect",&isMimicMuonDetect,"isDImuonDetect/O");
+    fOutputList->Add(fTreeMimicMuon);
+
   }
 
   fHistTrackEta = new TH2F("fHistTrackEta","",20,0,10,25,-4.5,-2.0);
@@ -377,46 +476,276 @@ void AliAnalysisTaskAODTrackPair::UserExec(Option_t *)
   if(fIsMC) ProcessMC();
 }
 
+bool AliAnalysisTaskAODTrackPair::isPrimaryMuonTrack(AliAODMCParticle *particle1){
+  
+  if(!particle1) return false;
+
+  if(!TDatabasePDG::Instance()->GetParticle(particle1->GetPdgCode())) return false;
+  if(!fUtils->isPrimary(particle1)) return false;
+  if(fabs(particle1->GetPdgCode())!=13) return false;
+
+  return true;
+}
+
+bool AliAnalysisTaskAODTrackPair::getMimicResolution(AliAODMCParticle* part1, vector<double>& reso){
+  
+  float charge1 = TDatabasePDG::Instance()->GetParticle(part1->GetPdgCode())->Charge();
+
+  THnSparse* fReso = NULL;
+
+  if(charge1 >0){
+    fReso = fResoP;
+  }
+  else{
+    fReso = fResoM;
+  }
+
+  TLorentzVector v1;
+  v1.SetPtEtaPhiM(part1->Pt(),part1->Eta(),part1->Phi(),part1->M());
+
+  fReso->GetAxis(0)->SetRange(fReso->GetAxis(0)->FindBin(v1.Pt()),fReso->GetAxis(0)->FindBin(v1.Pt()));
+  fReso->GetAxis(1)->SetRange(fReso->GetAxis(1)->FindBin(v1.Eta()),fReso->GetAxis(1)->FindBin(v1.Eta()));
+  fReso->GetAxis(2)->SetRange(fReso->GetAxis(2)->FindBin(v1.Phi()),fReso->GetAxis(2)->FindBin(v1.Phi()));
+
+  TH3F* R = (TH3F*)fReso->Projection(3,4,5);
+
+  if(R->GetEntries()<1){
+    delete R;
+    return false;
+  }
+
+  R->GetRandom3(reso[0],reso[1],reso[2]);
+
+  delete R;
+
+  return true;
+}
+
+bool AliAnalysisTaskAODTrackPair::isMimicDetect(AliAODMCParticle* part1){
+
+  float charge1 = TDatabasePDG::Instance()->GetParticle(part1->GetPdgCode())->Charge();
+
+  TLorentzVector v1;;
+  v1.SetPtEtaPhiM(part1->Pt(),part1->Eta(),part1->Phi(),part1->M());
+
+  TH3F* fEff = NULL;
+
+  if(charge1 >0){
+    fEff = fEffP;
+  }
+  else{
+    fEff = fEffM;
+  }
+  
+  float eff = fEff->GetBinContent(fEff->GetXaxis()->FindBin(v1.Pt()),
+                                  fEff->GetYaxis()->FindBin(v1.Eta()),
+                                  fEff->GetZaxis()->FindBin(v1.Phi()));
+  
+  if(eff>gRandom->Uniform(0.000,1.000)){
+    return true;
+  }
+  else{
+    return false;
+  }
+}
+
 bool AliAnalysisTaskAODTrackPair::ProcessMC(){
   
   AliAODMCParticle *particle1;
+  AliAODMCParticle *particle2;
+
+  TLorentzVector muon1;
+  TLorentzVector muon2;
+  TLorentzVector muon12;
+
+  TLorentzVector rec1;
+  TLorentzVector rec2;
+  TLorentzVector rec12;
+  
+  TVector3 vec;
 
   for(Int_t iTrack1=0; iTrack1<fMCTrackArray->GetEntries(); ++iTrack1){
     
     particle1 = (AliAODMCParticle*)fMCTrackArray->At(iTrack1);   
-    if(!particle1) continue;
-
-    if(!TDatabasePDG::Instance()->GetParticle(particle1->GetPdgCode())) continue;
-    if(!fUtils->isPrimary(particle1)) continue;
-    int pdgcode = particle1->GetPdgCode();
     
-    if(fabs(pdgcode)==13){
-      MCCharm=false;
-      MCBeauty=false;
+    if(isPrimaryMuonTrack(particle1)){
       
-      if(fUtils->isCharmQuarkOrigin(particle1) && !fUtils->isBeautyQuarkOrigin(particle1)){
-	MCCharm = true;
-	MCBeauty = false;
-      }
-      else if(!fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
-	MCCharm = false;
-	MCBeauty = true;
-      }
-      else if(fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
-	MCCharm = true;
-	MCBeauty = true;
-      }
-      else {
-	continue;
-      }
-      MCQPt = particle1->Charge()*particle1->Pt() / 3.;
-      MCPhi = particle1->Phi();
-      MCEta = particle1->Eta();
-      fTreeHFMC->Fill();
-    }
+      if(!fUtils->isCharmQuarkOrigin(particle1) || fUtils->isBeautyQuarkOrigin(particle1)) continue;
+      
+      bool isDetected1 = false;
+      int recCharge1 = 0;
 
-    double fill[]={fabs(particle1->Y()),particle1->Pt()};
+      for(int iRecTrack=0; iRecTrack<fEvent->GetNumberOfTracks(); ++iRecTrack){
+	AliAODTrack *track = (AliAODTrack*)fEvent->GetTrack(iRecTrack); 
+	if(!track) continue;
+	if(!fUtils->isAcceptMuonTrack(track)) continue;
+	
+	int label = track->GetLabel();
+	    
+	if(label>0 && label == iTrack1){
+	  isDetected1 = true;
+	  recCharge1 = track->Charge();
+	  rec1.SetPtEtaPhiM(track->Pt(),track->Eta(),track->Phi(),particle1->M());
+	}
+      }
       
+      muon1.SetPtEtaPhiM(particle1->Pt(),particle1->Eta(),particle1->Phi(),particle1->M());
+      
+      MCMuonQ = particle1->Charge()/3.;
+      MCMuonPt = muon1.Pt();
+      MCMuonEta = muon1.Eta();
+      MCMuonPhi = muon1.Phi();
+
+      if(isDetected1){	
+	RecMuonQ = recCharge1;
+	RecMuonPt = rec1.Pt();
+	RecMuonEta = rec1.Eta();
+	RecMuonPhi = rec1.Phi();
+	isMuonDetect = true;
+      }
+      else{
+	RecMuonQ = -999;
+	RecMuonPt =  -999;
+	RecMuonEta =  -999;
+	RecMuonPhi =  -999;
+	isMuonDetect = false;
+      }
+
+      fTreeMuon->Fill();
+
+      MCMimicMuonQ = particle1->Charge()/3.;
+      MCMimicMuonPt = muon1.Pt();
+      MCMimicMuonEta = muon1.Eta();
+      MCMimicMuonPhi = muon1.Phi();
+      
+      if(isMimicDetect(particle1)){
+	vector<double> reso1{0,0,0};
+	
+	if(getMimicResolution(particle1,reso1)){
+	  
+	  muon1.SetPtEtaPhiM(muon1.Pt()+reso1[0],muon1.Eta()+reso1[1],
+			     muon1.Phi()+reso1[2],muon1.M());	      
+	  
+	  RecMimicMuonQ = particle1->Charge()/3.;
+	  RecMimicMuonPt = muon1.Pt();
+	  RecMimicMuonEta = muon1.Eta();
+	  RecMimicMuonPhi = muon1.Phi();	  
+	  isMimicMuonDetect = true;
+	}
+      }
+      else{
+	RecMimicMuonQ = -999;
+	RecMimicMuonPt = -999;
+	RecMimicMuonEta = -999;
+	RecMimicMuonPhi = -999;	
+	isMimicMuonDetect = false;
+      }
+
+      fTreeMimicMuon->Fill();
+
+      for(Int_t iTrack2=iTrack1+1; iTrack2<fMCTrackArray->GetEntries(); ++iTrack2){
+	
+	particle2 = (AliAODMCParticle*)fMCTrackArray->At(iTrack2);   
+	
+	if(isPrimaryMuonTrack(particle2)){
+	  
+	  if(!fUtils->isCharmQuarkOrigin(particle2) || fUtils->isBeautyQuarkOrigin(particle2)) continue;
+	  
+	  bool isDetected2 = false;
+	  int recCharge2 = 0;
+	  
+	  for(int iRecTrack=0; iRecTrack<fEvent->GetNumberOfTracks(); ++iRecTrack){
+	    AliAODTrack *track = (AliAODTrack*)fEvent->GetTrack(iRecTrack); 
+	    if(!track) continue;
+	    if(!fUtils->isAcceptMuonTrack(track)) continue;
+	
+	    int label = track->GetLabel();
+	
+	    if(label>0 && label == iTrack2){
+	      isDetected2 = true;
+	      recCharge2 = track->Charge();
+	      rec2.SetPtEtaPhiM(track->Pt(),track->Eta(),track->Phi(),particle2->M());
+	    }
+	  }
+	  
+	  if(isDetected1 && isDetected2){
+	    isDimuonDetect = true;
+	  }
+	  else{
+	    isDimuonDetect = false;
+	  }
+	  
+	  muon2.SetPtEtaPhiM(particle2->Pt(),particle2->Eta(),particle2->Phi(),particle2->M());
+	  muon12 = muon1 + muon2;
+	  
+	  MCDimuonQ = (particle1->Charge() + particle2->Charge())/6.;
+	  MCDimuonPt = muon12.Pt();
+	  MCDimuonEta = muon12.Y();
+	  MCDimuonMass = muon12.M();
+
+	  MCMimicDimuonQ = (particle1->Charge() + particle2->Charge())/6.;
+	  MCMimicDimuonPt = muon12.Pt();
+	  MCMimicDimuonEta = muon12.Y();
+	  MCMimicDimuonMass = muon12.M();
+	  
+	  if(isDimuonDetect){
+	    rec12 = rec1 + rec2;	  
+	    RecDimuonQ = (recCharge1 + recCharge2)/2.;
+	    RecDimuonPt = rec12.Pt(); 
+	    RecDimuonEta = rec12.Y(); 
+	    RecDimuonMass = rec12.M(); 
+	  }
+	  else{
+	    RecDimuonQ = -999;
+	    RecDimuonPt = -999;
+	    RecDimuonEta = -999;
+	    RecDimuonMass = -999;
+	  }
+
+	  isMimicDimuonDetect= false;
+
+	  if(isMimicDetect(particle1) && isMimicDetect(particle2)){	    
+	    vector<double> reso1{0,0,0};
+	    vector<double> reso2{0,0,0};
+	    
+	    if(getMimicResolution(particle1,reso1) && getMimicResolution(particle2,reso2)){
+	      
+	      muon1.SetPtEtaPhiM(muon1.Pt()+reso1[0],muon1.Eta()+reso1[1],
+				 muon1.Phi()+reso1[2],muon1.M());	      
+	      muon2.SetPtEtaPhiM(muon2.Pt()+reso1[0],muon2.Eta()+reso1[1],
+				 muon2.Phi()+reso1[2],muon2.M());
+
+	      muon12 = muon1 + muon2;
+	      
+	      RecMimicDimuonQ = (particle1->Charge() + particle2->Charge())/6.;
+	      RecMimicDimuonPt = muon12.Pt();
+	      RecMimicDimuonEta = muon12.Y();
+	      RecMimicDimuonMass = muon12.M();
+	      
+	      isMimicDimuonDetect = true;
+	    }
+	  }
+	  else{
+	    RecMimicDimuonQ = -999;
+	    RecMimicDimuonPt = -999;
+	    RecMimicDimuonEta = -999;
+	    RecMimicDimuonMass = -999;
+	    isMimicDimuonDetect = false;
+	  }
+
+	  fTreeDimuon->Fill();
+	  fTreeMimicDimuon->Fill();
+
+	}
+
+      }//end of loop iTrack2
+    
+    }// ebnd of isPrimaryMuonTrack;
+    
+    double fill[]={fabs(particle1->Y()),particle1->Pt()};
+    
+    int pdgcode = particle1->GetPdgCode();
+
     if(pdgcode == fUtils->fPdgCodeEta){
       if(fUtils->isDalitzProd()){
 	fSparseEtaDalitzMC->Fill(fill);
@@ -480,7 +809,9 @@ bool AliAnalysisTaskAODTrackPair::Initialize()
     if(!mcHeader) return false;  
     
     TList* headerList = mcHeader->GetCocktailHeaders();
+    
     if(!headerList) return false;
+    
     for (Int_t i=0; i<headerList->GetEntries(); i++) {
       AliGenEventHeader * eventHeader2 = (AliGenEventHeader*)headerList->At(i) ;
       TString name = eventHeader2->GetName();
@@ -543,35 +874,19 @@ bool AliAnalysisTaskAODTrackPair::HFMuonTrackQA(AliAODTrack* track){
   if(!TDatabasePDG::Instance()->GetParticle(particle1->GetPdgCode())) return false;  
 
   if(!fUtils->isPrimary(particle1)) return false;
-
-  TrueCharm=false;
-  TrueBeauty=false;
   
   if(fUtils->isCharmQuarkOrigin(particle1) && !fUtils->isBeautyQuarkOrigin(particle1)){
-    TrueCharm = true;
-    TrueBeauty = false;
+
   }
   else if(!fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
-    TrueCharm = false;
-    TrueBeauty = true;
+    
   }
   else if(fUtils->isCharmQuarkOrigin(particle1) && fUtils->isBeautyQuarkOrigin(particle1)){
-    TrueCharm = true;
-    TrueBeauty = true;
+
   }
   else {
     return false;
   }
-
-  TrueQPt = particle1->Charge()*particle1->Pt() / 3.;
-  TruePhi = particle1->Phi();
-  TrueEta = particle1->Eta();
-  
-  RecQPt = track->Charge()*track->Pt();
-  RecPhi = track->Phi();
-  RecEta = track->Eta();
- 
-  fTreeHF->Fill();
 
   return true;
 }
